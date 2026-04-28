@@ -156,11 +156,25 @@ This submission follows the same Track A framing as PR #1735 and PR #1738:
 
 The rule-sensitive part is pre-quant TTT itself. I am presenting this under the same interpretation as PR #1735 / PR #1738: adaptation is part of artifact generation, and the submitted predictor is fixed at scoring time. If maintainers decide that pre-quant TTT on validation chunks is outside Track A, this line should be judged consistently with those PRs.
 
+## Dependencies And External Data
+
+The rule text allows imports as long as they do not violate evaluation, compute, training-time, code-size, or other restrictions, and asks record folders to include dependency/setup notes. The repository README also says the official RunPod environment has the normal packages pre-installed and that `requirements.txt` is a reference for manual setup.
+
+For this record:
+
+- The **submitted artifact** is still self-contained: counted code bytes plus compressed model bytes. It does not download anything during final eval.
+- The **final eval path** uses local validation shards and the fixed quantized artifact. There are no network calls, external services, or hidden files during scoring.
+- The **training setup** needs the CaseOps tokenizer/data files. I used the public `romeerp/parameter-golf-caseops-v1` Hugging Face dataset export from PR #1729, downloaded before running `train_gpt.py`.
+- The `train_gpt.py` runtime imports `torch`, `numpy`, `sentencepiece`, and `brotli`. It tries FlashAttention 3 if the official image has it, then falls back to the available PyTorch attention path.
+- `huggingface-hub` and `hf_transfer` are listed for the dataset download step only; they are not part of the final artifact/eval dependency.
+
+So the dependency story is: external packages and the public CaseOps data export are setup/training inputs, explicitly documented here; the actual scored artifact remains under 16,000,000 bytes and does not rely on network access during evaluation.
+
 ## Reproduction
 
 ```bash
 # Install deps
-pip install sentencepiece brotli zstandard huggingface-hub hf_transfer
+pip install -r requirements.txt
 pip install flash_attn_3 --no-deps --find-links https://windreamer.github.io/flash-attention3-wheels/cu128_torch291/
 
 # Download CaseOps dataset
